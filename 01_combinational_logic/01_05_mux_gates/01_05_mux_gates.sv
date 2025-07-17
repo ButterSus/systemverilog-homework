@@ -55,7 +55,7 @@ endmodule
 // Task
 //----------------------------------------------------------------------------
 
-module mux_4_1
+module mux_4_1/* _width_4 */
 (
   input  [3:0] d0, d1, d2, d3,
   input  [1:0] sel,
@@ -67,5 +67,14 @@ module mux_4_1
   // mux_4_1_width_1 as examples,
   // write code for 4:1 mux using only &, | and ~ operations.
 
+  wire sel0 = ~ sel [0] & ~ sel [1];
+  wire sel1 =   sel [0] & ~ sel [1];
+  wire sel2 = ~ sel [0] &   sel [1];
+  wire sel3 =   sel [0] &   sel [1];
+
+  assign y =   (d0 & { 4 {sel0} })
+             | (d1 & { 4 {sel1} })
+             | (d2 & { 4 {sel2} })
+             | (d3 & { 4 {sel3} });
 
 endmodule
