@@ -38,6 +38,7 @@ module mux_4_1
       2'd01: y = d1;
       2'd10: y = d2;
       2'd11: y = d3;
+      default: y = 'x;
     endcase
 
 endmodule
