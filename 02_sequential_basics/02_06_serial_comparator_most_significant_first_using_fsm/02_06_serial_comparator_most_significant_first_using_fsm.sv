@@ -71,5 +71,38 @@ module serial_comparator_most_significant_first_using_fsm
   // but use the Finite State Machine to evaluate the result.
   // Most significant bits arrive first.
 
+  // One-hot states
+  enum logic [2:0]
+  {
+    st_a_less_b    = 3'b100,
+    st_a_eq_b      = 3'b010,
+    st_a_greater_b = 3'b001
+  }
+  state, new_state;
+
+  always_comb begin
+    // It seemed like this line was unnecessary at first,
+    // but after trying out and wondering, why does this particular code
+    // result in 'x values being propagated through wires, it turns out
+    // st_a_eq_b case doesn't assign state at all, so assigning default state
+    // at the top of always_comb is generally good coding convention.
+    new_state = state;
+
+    // verilator lint_off CASEINCOMPLETE
+    case (state)
+      st_a_eq_b : if (~a &  b) new_state = st_a_less_b;
+             else if ( a & ~b) new_state = st_a_greater_b;
+    endcase
+    // verilator lint_on  CASEINCOMPLETE
+  end
+
+  // Output logic
+  assign { a_less_b, a_eq_b, a_greater_b } = new_state;
+
+  always_ff @ (posedge clk)
+    if (rst)
+      state <= st_a_eq_b;
+    else
+      state <= new_state;
 
 endmodule

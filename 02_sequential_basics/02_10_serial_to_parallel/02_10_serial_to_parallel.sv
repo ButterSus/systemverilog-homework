@@ -26,5 +26,24 @@ module serial_to_parallel
     // Note:
     // Check the waveform diagram in the README for better understanding.
 
+    logic [width - 1:0] shift_reg;
+
+    always_ff @ (posedge clk)
+        if (rst)
+
+            shift_reg <= { 1'b1, { (width - 1) { 1'b0 } } };
+
+        else if (serial_valid)
+            // There is some advice: Using indices like with cnt is pretty
+            // expensive in terms of hardware (gates, e.t.c.), but like shift
+            // register is a very common thing and optimized for both ASICs
+            // and FPGAs. It's literally D triggers connected to each other,
+            // so called 'Destructive Read'.
+
+            shift_reg <= shift_reg[0] ? { 1'b1, { (width - 1) { 1'b0 } } } : { serial_data, shift_reg[width - 1:1] };
+
+    // Output logic
+    assign parallel_valid = shift_reg[0] & serial_valid;
+    assign parallel_data = { serial_data, shift_reg[width - 1:1] };
 
 endmodule
