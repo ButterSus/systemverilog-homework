@@ -86,5 +86,81 @@ module sort_three_floats (
     // The FLEN parameter is defined in the "import/preprocessed/cvw/config-shared.vh" file
     // and usually equal to the bit width of the double-precision floating-point number, FP64, 64 bits.
 
+    logic res_u0_le_u1,
+          res_u0_le_u2,
+          res_u1_le_u2;
+
+    logic [2:0] res_err;
+
+    f_less_or_equal i0_floe
+    (
+        .a   ( unsorted [0] ),
+        .b   ( unsorted [1] ),
+        .res ( res_u0_le_u1 ),
+        .err ( res_err [0]  )
+    );
+
+    f_less_or_equal i1_floe
+    (
+        .a   ( unsorted [0] ),
+        .b   ( unsorted [2] ),
+        .res ( res_u0_le_u2 ),
+        .err ( res_err [1]  )
+    );
+
+    f_less_or_equal i2_floe
+    (
+        .a   ( unsorted [1] ),
+        .b   ( unsorted [2] ),
+        .res ( res_u1_le_u2 ),
+        .err ( res_err [2]  )
+    );
+
+    // Index sorting
+
+    logic [1:0] sidx0, sidx1, sidx2;
+
+    always_comb begin
+        case ({ res_u0_le_u1, res_u0_le_u2, res_u1_le_u2 })
+            3'b000 : begin
+                sidx0 = 2'd2;
+                sidx1 = 2'd1;
+                sidx2 = 2'd0;
+            end
+            3'b001 : begin
+                sidx0 = 2'd1;
+                sidx1 = 2'd2;
+                sidx2 = 2'd0;
+            end
+            3'b011 : begin
+                sidx0 = 2'd1;
+                sidx1 = 2'd0;
+                sidx2 = 2'd2;
+            end
+            3'b100 : begin
+                sidx0 = 2'd2;
+                sidx1 = 2'd0;
+                sidx2 = 2'd1;
+            end
+            3'b110 : begin
+                sidx0 = 2'd0;
+                sidx1 = 2'd2;
+                sidx2 = 2'd1;
+            end
+            3'b111 : begin
+                sidx0 = 2'd0;
+                sidx1 = 2'd1;
+                sidx2 = 2'd2;
+            end
+        endcase
+    end
+
+    // Output logic
+
+    assign err = ( |res_err );
+
+    assign sorted [0] = unsorted [sidx0];
+    assign sorted [1] = unsorted [sidx1];
+    assign sorted [2] = unsorted [sidx2];
 
 endmodule
