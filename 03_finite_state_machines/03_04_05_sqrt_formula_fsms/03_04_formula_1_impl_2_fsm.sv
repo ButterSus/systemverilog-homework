@@ -124,7 +124,7 @@ module formula_1_impl_2_fsm
     logic [31:0] c_reg;
     logic [15:0] isqrt_a_reg,
                  isqrt_b_reg;
-    logic [31:0] res_reg;
+    logic [17:0] res_reg;
 
     always_ff @ (posedge clk)
         // verilator lint_off CASEINCOMPLETE
@@ -138,12 +138,12 @@ module formula_1_impl_2_fsm
             st_wait_isqrt_c : if (isqrt_1_y_vld)
                 // We explicitly state that we want to use 18 bit width addition
                 // Clarification: log2(3 * (2 ** 16 - 1)) > 17
-                res_reg <= { 14'd0, 18'(isqrt_1_y) + 18'(isqrt_a_reg) + 18'(isqrt_b_reg) };
+                res_reg <= 18'(isqrt_1_y) + 18'(isqrt_a_reg) + 18'(isqrt_b_reg);
         endcase
         // verilator lint_on CASEINCOMPLETE
 
     // Output logic
-    assign res = res_vld ? res_reg : 'x;
+    assign res = res_vld ? 32'(res_reg) : 'x;
     assign res_vld = (state == st_done);
 
 endmodule
