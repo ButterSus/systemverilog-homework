@@ -256,8 +256,8 @@ module float_discriminant (
             end
 
             REQ_MULT_AC : begin
-                f_mult_a = a_l;
-                f_mult_b = c_l;
+                f_mult_a = a_reg;
+                f_mult_b = c_reg;
 
                 // Emitted flag prevents from sending multiple requests
                 f_mult_arg_vld = !valid_emitted_flag && !f_mult_busy;
@@ -286,8 +286,8 @@ module float_discriminant (
 
     // Datapath : Storing
 
-    logic [FLEN - 1:0] a_l, b_l, c_l,  // l stands for latch
-                       bb_l, ac_l, ac4_l,
+    logic [FLEN - 1:0] a_reg, b_l, c_reg,
+                       bb_l, ac_l, ac4_l,  // l stands for latch
                        res_reg;
     logic valid_captured_flag;
 
@@ -315,13 +315,18 @@ module float_discriminant (
     // In this case, I intentionally want to store and use output at the same
     // time. Latches are perfect for this.
 
-    always_latch
+    always_ff @ (posedge clk)
         case (state)
             IDLE : if (arg_vld) begin
-                a_l = a;
-                b_l = b;
-                c_l = c;
+                a_reg <= a;
+                c_reg <= c;
             end
+        endcase
+
+    always_latch
+        case (state)
+            IDLE : if (arg_vld)
+                b_l = b;
             REQ_MULT_AC : if (f_mult_vld)
                 case (track_mult_state)
                     TRACK_MULT_BB : begin
