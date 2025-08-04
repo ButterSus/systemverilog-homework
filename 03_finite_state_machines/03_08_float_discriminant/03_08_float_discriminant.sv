@@ -192,6 +192,9 @@ module float_discriminant (
                     valid_emitted_flag <= 1'b1;
             endcase
 
+    // My verilator tells me it can't find definition of variable NE, NF
+    // So it doesn't dump me any warnings
+
     logic            ac_l_sign,     ac4_l_sign;
     logic [NE - 1:0] ac_l_exponent, ac4_l_exponent;
     logic [NF - 1:0] ac_l_fraction, ac4_l_fraction;
