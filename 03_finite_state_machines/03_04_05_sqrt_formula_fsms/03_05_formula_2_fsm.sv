@@ -38,7 +38,9 @@ module formula_2_fsm
     {
         st_idle,
         st_wait_isqrt_c,
+        st_comb_b,
         st_wait_isqrt_b,
+        st_comb_a,
         st_wait_isqrt_a,
         st_done
     }
@@ -54,8 +56,12 @@ module formula_2_fsm
             st_idle : if (arg_vld)
                 new_state = st_wait_isqrt_c;
             st_wait_isqrt_c : if (isqrt_y_vld)
+                new_state = st_comb_b;
+            st_comb_b :
                 new_state = st_wait_isqrt_b;
             st_wait_isqrt_b : if (isqrt_y_vld)
+                new_state = st_comb_a;
+            st_comb_a :
                 new_state = st_wait_isqrt_a;
             st_wait_isqrt_a : if (isqrt_y_vld)
                 new_state = st_done;
@@ -85,19 +91,15 @@ module formula_2_fsm
 
                 isqrt_x = c;
             end
-            st_wait_isqrt_c : begin
-                isqrt_x_vld = isqrt_y_vld;
+            st_comb_b : begin
+                isqrt_x_vld = 1'b1;
 
-                // WARN: Most likely, I believe, this will cause negative
-                // slack. Add extra states if this is the case.
-                // Using any output from huge latency combinational circuit as
-                // input ideally should be avoided.
-                isqrt_x = 32'(isqrt_y) + b_reg;
+                isqrt_x = 32'(res_reg) + b_reg;
             end
-            st_wait_isqrt_b : begin
-                isqrt_x_vld = isqrt_y_vld;
+            st_comb_a : begin
+                isqrt_x_vld = 1'b1;
 
-                isqrt_x = 32'(isqrt_y) + a_reg;
+                isqrt_x = 32'(res_reg) + a_reg;
             end
         endcase
         // verilator lint_on CASEINCOMPLETE
@@ -105,7 +107,7 @@ module formula_2_fsm
 
     // Datapath : Storing
 
-    logic [31:0] a_reg, b_reg;
+    logic [31:0] a_reg, b_reg;  // Also acts as registers for accumulation
     logic [15:0] res_reg;
 
     always_ff @ (posedge clk)
@@ -115,6 +117,10 @@ module formula_2_fsm
                 a_reg <= a;
                 b_reg <= b;
             end
+            st_wait_isqrt_c : if (isqrt_y_vld)
+                res_reg <= isqrt_y;
+            st_wait_isqrt_b : if (isqrt_y_vld)
+                res_reg <= isqrt_y;
             st_wait_isqrt_a : if (isqrt_y_vld)
                 res_reg <= isqrt_y;
         endcase
