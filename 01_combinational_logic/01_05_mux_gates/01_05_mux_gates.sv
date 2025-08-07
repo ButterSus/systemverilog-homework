@@ -72,9 +72,9 @@ module mux_4_1/* _width_4 */
   wire sel2 = ~ sel [0] &   sel [1];
   wire sel3 =   sel [0] &   sel [1];
 
-  assign y =   (d0 & { 4 {sel0} })
-             | (d1 & { 4 {sel1} })
-             | (d2 & { 4 {sel2} })
-             | (d3 & { 4 {sel3} });
+  assign y =   (d0 & { 4 { sel0 } })
+             | (d1 & { 4 { sel1 } })
+             | (d2 & { 4 { sel2 } })
+             | (d3 & { 4 { sel3 } });
 
 endmodule

@@ -33,13 +33,9 @@ module mux_4_1
   // write code for 4:1 mux using the "if" statement
 
   always_comb
-    if (sel == 2'b11)
-      y = d3;
-    else if (sel == 2'b10)
-      y = d2;
-    else if (sel == 2'b01)
-      y = d1;
-    else
-      y = d0;
+    if      (sel == 2'b11) y = d3;
+    else if (sel == 2'b10) y = d2;
+    else if (sel == 2'b01) y = d1;
+    else                   y = d0;
 
 endmodule
