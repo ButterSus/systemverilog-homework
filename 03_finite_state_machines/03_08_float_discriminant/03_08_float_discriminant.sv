@@ -177,6 +177,9 @@ module float_discriminant (
         .error      ( f_sub_err     )
     );
 
+    // Luckily, there is no need for FIFO to handle back pressure since this
+    // is FSM.
+
     // Datapath : Loading
 
     logic valid_emitted_flag;
