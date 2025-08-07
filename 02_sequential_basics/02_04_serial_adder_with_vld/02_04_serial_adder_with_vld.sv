@@ -36,9 +36,11 @@ module serial_adder_with_vld
 
   always_ff @ (posedge clk)
     // Use logical operators as coding convention for if statements
-    if (rst || last && vld)
+    if (rst || last && vld) begin
       carry <= '0;
-    else if (vld)
+    end
+    else if (vld) begin
       carry <= carry_d;
+    end
 
 endmodule

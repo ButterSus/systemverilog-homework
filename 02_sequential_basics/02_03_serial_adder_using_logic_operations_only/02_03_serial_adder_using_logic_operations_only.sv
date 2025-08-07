@@ -57,9 +57,11 @@ module serial_adder_using_logic_operations_only
   assign sum = a ^ b ^ carry;
 
   always_ff @ (posedge clk)
-    if (rst)
+    if (rst) begin
       carry <= '0;
-    else
+    end
+    else begin
       carry <= carry_d;
+    end
 
 endmodule

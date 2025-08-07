@@ -34,14 +34,14 @@ module round_robin_arbiter_with_2_requests
         new_state = state;
 
         case (state)
-            st_first  : if (grants[0]) new_state = st_second;
-            st_second : if (grants[1]) new_state = st_first;
+            st_first  : if (grants [0]) new_state = st_second;
+            st_second : if (grants [1]) new_state = st_first;
         endcase
     end
 
     // Output logic
-    assign grants[0] = requests[0] & (~requests[1] || state == st_first);
-    assign grants[1] = requests[1] & (~requests[0] || state == st_second);
+    assign grants [0] = requests [0] && (~requests [1] || state == st_first);
+    assign grants [1] = requests [1] && (~requests [0] || state == st_second);
 
     always_ff @ (posedge clk)
         if (rst)
