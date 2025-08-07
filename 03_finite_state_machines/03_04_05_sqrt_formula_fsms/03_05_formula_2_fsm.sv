@@ -88,6 +88,10 @@ module formula_2_fsm
             st_wait_isqrt_c : begin
                 isqrt_x_vld = isqrt_y_vld;
 
+                // WARN: Most likely, I believe, this will cause negative
+                // slack. Add extra states if this is the case.
+                // Using any output from huge latency combinational circuit as
+                // input ideally should be avoided.
                 isqrt_x = 32'(isqrt_y) + b_reg;
             end
             st_wait_isqrt_b : begin
