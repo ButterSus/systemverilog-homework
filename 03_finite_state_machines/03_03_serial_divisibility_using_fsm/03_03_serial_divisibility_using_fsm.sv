@@ -91,15 +91,15 @@ module serial_divisibility_by_5_using_fsm
     // verilator lint_off CASEINCOMPLETE
     case (state)
       st_mod_0 : if (new_bit) new_state = st_mod_1;
-                 else         /* new_state = st_mod_0 */;
+        else /* new_state = st_mod_0 */;
       st_mod_1 : if (new_bit) new_state = st_mod_3;
-                 else         new_state = st_mod_2;
+        else new_state = st_mod_2;
       st_mod_2 : if (new_bit) new_state = st_mod_0;
-                 else         new_state = st_mod_4;
+        else new_state = st_mod_4;
       st_mod_3 : if (new_bit) new_state = st_mod_2;
-                 else         new_state = st_mod_1;
+        else new_state = st_mod_1;
       st_mod_4 : if (new_bit) /* new_state = st_mod_4 */;
-                 else         new_state = st_mod_3;
+        else new_state = st_mod_3;
     endcase
     // verilator lint_on CASEINCOMPLETE
   end

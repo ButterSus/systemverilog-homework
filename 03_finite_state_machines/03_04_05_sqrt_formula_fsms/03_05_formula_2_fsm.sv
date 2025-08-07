@@ -91,11 +91,13 @@ module formula_2_fsm
 
                 isqrt_x = c;
             end
+
             st_comb_b : begin
                 isqrt_x_vld = 1'b1;
 
                 isqrt_x = 32'(res_reg) + b_reg;
             end
+
             st_comb_a : begin
                 isqrt_x_vld = 1'b1;
 
@@ -117,16 +119,23 @@ module formula_2_fsm
                 a_reg <= a;
                 b_reg <= b;
             end
-            st_wait_isqrt_c : if (isqrt_y_vld)
+
+            st_wait_isqrt_c : if (isqrt_y_vld) begin
                 res_reg <= isqrt_y;
-            st_wait_isqrt_b : if (isqrt_y_vld)
+            end
+
+            st_wait_isqrt_b : if (isqrt_y_vld) begin
                 res_reg <= isqrt_y;
-            st_wait_isqrt_a : if (isqrt_y_vld)
+            end
+
+            st_wait_isqrt_a : if (isqrt_y_vld) begin
                 res_reg <= isqrt_y;
+            end
         endcase
         // verilator lint_on CASEINCOMPLETE
 
     // Output logic
+
     assign res = res_vld ? 32'(res_reg) : 'x;
     assign res_vld = (state == st_done);
 

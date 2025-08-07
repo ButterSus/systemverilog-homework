@@ -76,22 +76,21 @@ module formula_1_impl_2_fsm
                 new_state = st_wait_isqrt_ab;
             st_wait_isqrt_ab : if (isqrt_1_y_vld && isqrt_2_y_vld)
                 new_state = st_wait_isqrt_c;
-            st_wait_isqrt_c  : if (isqrt_1_y_vld)
+            st_wait_isqrt_c : if (isqrt_1_y_vld)
                 new_state = st_comb;
             st_comb :
                 new_state = st_done;
             st_done :
                 new_state = st_idle;
-        // verilator lint_on CASEINCOMPLETE
         endcase
+        // verilator lint_on CASEINCOMPLETE
     end
 
     always_ff @ (posedge clk)
-        if (rst) begin
+        if (rst)
             state <= st_idle;
-        end else begin
+        else
             state <= new_state;
-        end
 
     // Datapath: Loading
 
@@ -113,6 +112,7 @@ module formula_1_impl_2_fsm
                 isqrt_1_x = a;
                 isqrt_2_x = b;
             end
+
             st_wait_isqrt_ab : begin
                 isqrt_1_x_vld = isqrt_1_y_vld && isqrt_2_y_vld;
 
@@ -133,22 +133,29 @@ module formula_1_impl_2_fsm
     always_ff @ (posedge clk)
         // verilator lint_off CASEINCOMPLETE
         case (state)
-            st_idle : if (arg_vld)
+            st_idle : if (arg_vld) begin
                 c_reg <= c;
+            end
+
             st_wait_isqrt_ab : if (isqrt_1_y_vld && isqrt_2_y_vld) begin
                 isqrt_a_reg <= isqrt_1_y;
                 isqrt_b_reg <= isqrt_2_y;
             end
-            st_wait_isqrt_c : if (isqrt_1_y_vld)
+
+            st_wait_isqrt_c : if (isqrt_1_y_vld) begin
                 // We explicitly state that we want to use 18 bit width addition
                 // Clarification: log2(3 * (2 ** 16 - 1)) > 17
                 isqrt_c_reg <= isqrt_1_y;
-            st_comb :
+            end
+
+            st_comb : begin
                 res_reg <= 18'(isqrt_a_reg) + 18'(isqrt_b_reg) + 18'(isqrt_c_reg);
+            end
         endcase
         // verilator lint_on CASEINCOMPLETE
 
     // Output logic
+
     assign res = res_vld ? 32'(res_reg) : 'x;
     assign res_vld = (state == st_done);
 

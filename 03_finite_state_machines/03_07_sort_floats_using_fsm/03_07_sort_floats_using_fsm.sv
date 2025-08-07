@@ -56,16 +56,19 @@ module sort_floats_using_fsm (
                     new_state = st_done;
                 else if (valid_in)
                     new_state = st_comp_u0_le_u2;
+
             st_comp_u0_le_u2 :
                 if (f_le_err)
                     new_state = st_done;
                 else
                     new_state = st_comp_u1_le_u2;
+
             st_comp_u1_le_u2 :
                 if (f_le_err)
                     new_state = st_done;
                 else
                     new_state = st_done;
+
             st_done :
                 new_state = st_idle;
         endcase
@@ -88,10 +91,12 @@ module sort_floats_using_fsm (
                 f_le_a = unsorted [0];
                 f_le_b = unsorted [1];
             end
+
             st_comp_u0_le_u2 : begin
                 f_le_a = unsorted_reg [0];
                 f_le_b = unsorted_reg [2];
             end
+
             st_comp_u1_le_u2 : begin
                 f_le_a = unsorted_reg [1];
                 f_le_b = unsorted_reg [2];
@@ -113,12 +118,9 @@ module sort_floats_using_fsm (
             st_idle : begin
                 if (valid_in) begin
                     unsorted_reg <= unsorted;
-
                     res_u0_le_u1_reg <= f_le_res;
 
                     err <= f_le_err;
-                    if (f_le_err)
-                        sorted_reg <= 'x;
                 end
             end
 
@@ -126,8 +128,6 @@ module sort_floats_using_fsm (
                 res_u0_le_u2_reg <= f_le_res;
 
                 err <= f_le_err;
-                if (f_le_err)
-                    sorted_reg <= 'x;
             end
 
             st_comp_u1_le_u2 : begin
@@ -136,8 +136,6 @@ module sort_floats_using_fsm (
                 sorted_reg [2] <= unsorted_reg [sidx2];
 
                 err <= f_le_err;
-                if (f_le_err)
-                    sorted_reg <= 'x;
             end
         endcase
 
@@ -145,40 +143,44 @@ module sort_floats_using_fsm (
 
     logic [1:0] sidx0, sidx1, sidx2;
 
-    always_comb begin
+    always_comb
         case ({ res_u0_le_u1_reg, res_u0_le_u2_reg, f_le_res })
             3'b000 : begin
                 sidx0 = 2'd2;
                 sidx1 = 2'd1;
                 sidx2 = 2'd0;
             end
+
             3'b001 : begin
                 sidx0 = 2'd1;
                 sidx1 = 2'd2;
                 sidx2 = 2'd0;
             end
+
             3'b011 : begin
                 sidx0 = 2'd1;
                 sidx1 = 2'd0;
                 sidx2 = 2'd2;
             end
+
             3'b100 : begin
                 sidx0 = 2'd2;
                 sidx1 = 2'd0;
                 sidx2 = 2'd1;
             end
+
             3'b110 : begin
                 sidx0 = 2'd0;
                 sidx1 = 2'd2;
                 sidx2 = 2'd1;
             end
+
             3'b111 : begin
                 sidx0 = 2'd0;
                 sidx1 = 2'd1;
                 sidx2 = 2'd2;
             end
         endcase
-    end
 
     // Output logic
 

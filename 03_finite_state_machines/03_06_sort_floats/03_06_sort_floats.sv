@@ -97,7 +97,7 @@ module sort_three_floats (
         .a   ( unsorted [0] ),
         .b   ( unsorted [1] ),
         .res ( res_u0_le_u1 ),
-        .err ( res_err [0]  )
+        .err ( res_err  [0] )
     );
 
     f_less_or_equal i1_floe
@@ -105,7 +105,7 @@ module sort_three_floats (
         .a   ( unsorted [0] ),
         .b   ( unsorted [2] ),
         .res ( res_u0_le_u2 ),
-        .err ( res_err [1]  )
+        .err ( res_err  [1] )
     );
 
     f_less_or_equal i2_floe
@@ -113,7 +113,7 @@ module sort_three_floats (
         .a   ( unsorted [1] ),
         .b   ( unsorted [2] ),
         .res ( res_u1_le_u2 ),
-        .err ( res_err [2]  )
+        .err ( res_err  [2] )
     );
 
     // Index sorting
@@ -127,26 +127,31 @@ module sort_three_floats (
                 sidx1 = 2'd1;
                 sidx2 = 2'd0;
             end
+
             3'b001 : begin
                 sidx0 = 2'd1;
                 sidx1 = 2'd2;
                 sidx2 = 2'd0;
             end
+
             3'b011 : begin
                 sidx0 = 2'd1;
                 sidx1 = 2'd0;
                 sidx2 = 2'd2;
             end
+
             3'b100 : begin
                 sidx0 = 2'd2;
                 sidx1 = 2'd0;
                 sidx2 = 2'd1;
             end
+
             3'b110 : begin
                 sidx0 = 2'd0;
                 sidx1 = 2'd2;
                 sidx2 = 2'd1;
             end
+
             3'b111 : begin
                 sidx0 = 2'd0;
                 sidx1 = 2'd1;

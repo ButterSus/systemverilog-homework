@@ -77,30 +77,41 @@ module float_discriminant (
 
     // State logic
 
-    always_comb begin : new_state_logic
+    always_comb begin
         new_state = state;
 
         case (state)
             // We need to check if we received valid arguments before or now,
             // and if multiplier is not busy.
             IDLE : 
-                if ((
-                    valid_captured_flag || arg_vld
-                ) && !f_mult_busy)
+                if (
+                    (
+                           valid_captured_flag
+                        || arg_vld
+                    ) &&
+                    !f_mult_busy
+                )
                     new_state = REQ_MULT_AC;
 
             // We need to check if we finish tracking multiplier output now
             // finished it before, and if subtractor is not busy.
             REQ_MULT_AC :
-                if (f_mult_vld && (
-                    (track_mult_state == TRACK_MULT_BB) ||
-                    (track_mult_state == TRACK_MULT_AC)
-                ) && f_mult_err)
+                if (
+                    f_mult_vld && (
+                           (track_mult_state == TRACK_MULT_BB)
+                        || (track_mult_state == TRACK_MULT_AC)
+                    ) &&
+                    f_mult_err
+                )
                     new_state = DONE;
-                else if ((
-                    (track_mult_state == TRACK_MULT_AC) && f_mult_vld ||
-                    (track_mult_state == TRACK_DONE)
-                ) && !f_sub_busy)
+
+                else if (
+                    (
+                           (track_mult_state == TRACK_MULT_AC) && f_mult_vld
+                        || (track_mult_state == TRACK_DONE)
+                    ) &&
+                    !f_sub_busy
+                )
                     new_state = WAIT_SUB;
 
             // We don't need to check if anything is not busy, so transition
@@ -116,17 +127,24 @@ module float_discriminant (
         endcase
     end
 
-    always_comb begin : new_track_mult_state_logic
+    always_comb begin
         new_track_mult_state = track_mult_state;
 
         case (track_mult_state)
             TRACK_MULT_BB : if (f_mult_vld)
                 new_track_mult_state = TRACK_MULT_AC;
+
             TRACK_MULT_AC : if (f_mult_vld)
                 new_track_mult_state = TRACK_DONE;
-            TRACK_DONE : if ((state == IDLE) && (
-                valid_captured_flag || arg_vld
-            ) && !f_mult_busy)
+
+            TRACK_DONE : if (
+                (state == IDLE) &&
+                ( 
+                       valid_captured_flag
+                    || arg_vld
+                ) &&
+                !f_mult_busy
+            )
                 new_track_mult_state = TRACK_MULT_BB;
         endcase
     end
@@ -185,15 +203,18 @@ module float_discriminant (
     logic valid_emitted_flag;
 
     always_ff @ (posedge clk)
-        if (rst)
+        if (rst) begin
             valid_emitted_flag <= 1'b0;
-        else 
+        end
+        else begin
             case (state)
                 DONE :
                     valid_emitted_flag <= 1'b0;
+
                 REQ_MULT_AC : if (!f_mult_busy)
                     valid_emitted_flag <= 1'b1;
             endcase
+        end
 
     // My verilator tells me it can't find definition of variable NE, NF
     // So it doesn't dump me any warnings
@@ -214,39 +235,40 @@ module float_discriminant (
         ac4_l_fraction = ac_l_fraction;
 
         // Handle special cases
-        if (ac_l_exponent == { NE{1'b0} }) begin
-            if (ac_l_fraction == { NF{1'b0} })
-                // Zero
-                /* ac4_l_exponent = ac_l_exponent */;  // Default
+        if (ac_l_exponent == { NE {1'b0} }) begin
+            // Zero
+            if (ac_l_fraction == { NF {1'b0} }) /* ac4_l_exponent = ac_l_exponent */;  // Default
+
+            // Denormalized (Undefined)
             else begin
-                // Denormalized (Undefined)
-                ac4_l_exponent = { NF{1'bx} };
-                ac4_l_fraction = { NF{1'bx} };
+                ac4_l_exponent = { NF {1'bx} };
+                ac4_l_fraction = { NF {1'bx} };
             end
-        end else if (ac_l_exponent == { NE{1'b1} }) begin
-            if (ac_l_fraction == { NF{1'b0} })
-                // Infinity
-                /* ac4_l_exponent = ac_l_exponent */;  // Default
-            else
-                // NAN
-                /* ac4_l_exponent = ac_l_exponent */;  // Propagate
-        end else begin
+        end
+        else if (ac_l_exponent == { NE {1'b1} }) begin
+            // Infinity
+            if (ac_l_fraction == { NF {1'b0} }) /* ac4_l_exponent = ac_l_exponent */;  // Default
+
+            // NAN
+            else /* ac4_l_exponent = ac_l_exponent */;  // Propagate
+        end
+        else begin
             logic [NE:0] temp_exponent;
 
             temp_exponent = { 1'b0, ac_l_exponent } + 2'd2;
 
-            if (temp_exponent >= { NE{1'b1} }) begin
+            if (temp_exponent >= { NE {1'b1} }) begin
                 // Overflow to infinity
-                ac4_l_exponent = { NE{1'b1} };
-                ac4_l_fraction = { NF{1'b0} };
-            end else
-                ac4_l_exponent = temp_exponent [NE - 1:0];
+                ac4_l_exponent = { NE {1'b1} };
+                ac4_l_fraction = { NF {1'b0} };
+            end
+            else ac4_l_exponent = temp_exponent [NE - 1:0];
         end
     end
 
     assign ac4_l = { ac4_l_sign, ac4_l_exponent, ac4_l_fraction };
 
-    always_comb begin : f_mult_load
+    always_comb begin
         f_mult_a = 'x;
         f_mult_b = 'x;
 
@@ -257,8 +279,12 @@ module float_discriminant (
                 f_mult_a = b_l;
                 f_mult_b = b_l;
 
-                f_mult_arg_vld = (valid_captured_flag || arg_vld)
-                                 && !f_mult_busy;
+                f_mult_arg_vld =
+                    (
+                           valid_captured_flag
+                        || arg_vld
+                    ) &&
+                    !f_mult_busy;
             end
 
             REQ_MULT_AC : begin
@@ -271,7 +297,7 @@ module float_discriminant (
         endcase
     end
 
-    always_comb begin : f_sub_load
+    always_comb begin
         f_sub_a = 'x;
         f_sub_b = 'x;
 
@@ -282,10 +308,12 @@ module float_discriminant (
                 f_sub_a = bb_l;
                 f_sub_b = ac4_l;
 
-                f_sub_arg_vld = (
-                    (track_mult_state == TRACK_MULT_AC) && f_mult_vld ||
-                    (track_mult_state == TRACK_DONE)
-                ) && !f_sub_busy;
+                f_sub_arg_vld =
+                    (
+                           (track_mult_state == TRACK_MULT_AC) && f_mult_vld
+                        || (track_mult_state == TRACK_DONE)
+                    ) &&
+                    !f_sub_busy;
             end
         endcase
     end
@@ -298,14 +326,16 @@ module float_discriminant (
     logic valid_captured_flag;
 
     always_ff @ (posedge clk)
-        if (rst)
+        if (rst) begin
             valid_captured_flag <= 1'b0;
+        end
         else
             case (state)
                 // We need it only in IDLE state, but it's just a coincidence and
                 // if formula was more complex, there would be more states.
-                IDLE : if (arg_vld)
+                IDLE : if (arg_vld) begin
                     valid_captured_flag <= f_mult_busy;
+                end
             endcase
 
     // NOTE: Friendly reminder why SystemVerilog developers generally
@@ -331,8 +361,10 @@ module float_discriminant (
 
     always_latch
         case (state)
-            IDLE : if (arg_vld)
+            IDLE : if (arg_vld) begin
                 b_l = b;
+            end
+
             REQ_MULT_AC : if (f_mult_vld)
                 case (track_mult_state)
                     TRACK_MULT_BB : begin
@@ -344,6 +376,7 @@ module float_discriminant (
                         err = f_mult_err;
                     end
                 endcase
+
             WAIT_SUB : if (f_sub_vld) begin
                 res_reg = f_sub_res;
                 err = f_sub_err;

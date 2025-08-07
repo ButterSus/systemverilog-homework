@@ -84,9 +84,12 @@ module detect_6_bit_sequence_using_fsm
     // L stands for low
 
     IDLE,  // st_idle
-    H0, H1,
-    L2, L3,
-    H4, H5  // st_done
+    H0,
+    H1,
+    L2,
+    L3,
+    H4,
+    H5     // st_done
   }
   state, new_state;
 
@@ -98,16 +101,15 @@ module detect_6_bit_sequence_using_fsm
       IDLE : if ( a) new_state = H0;  // x
       H0   : if ( a) new_state = H1;  // 1x
       H1   : if (~a) new_state = L2;  // 11x
-             else    new_state = H1;
+        else new_state = H1;
       L2   : if (~a) new_state = L3;  // 110x
-             else    new_state = H0;
+        else new_state = H0;
       L3   : if ( a) new_state = H4;  // 1100x
       H4   : if ( a) new_state = H5;  // 11001x
       H5   : if ( a) new_state = H1;  // 110011x
-             else    new_state = L2;
+        else new_state = L2;
     endcase
     // verilator lint_on CASEINCOMPLETE
-
   end
 
   // Output logic

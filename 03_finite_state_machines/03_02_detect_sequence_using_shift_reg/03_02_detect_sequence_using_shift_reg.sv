@@ -45,17 +45,17 @@ module detect_6_bit_sequence_using_shift_reg
   logic [5:0] shift_reg;
 
   // Output logic
-  assign detected =  shift_reg[0] &
-                     shift_reg[1] &
-                    ~shift_reg[2] &
-                    ~shift_reg[3] &
-                     shift_reg[4] &
-                     shift_reg[5];
+  assign detected =  shift_reg [0] &
+                     shift_reg [1] &
+                    ~shift_reg [2] &
+                    ~shift_reg [3] &
+                     shift_reg [4] &
+                     shift_reg [5];
 
   always_ff @ (posedge clk)
     if (rst)
       shift_reg <= '0;
     else
-      shift_reg <= { shift_reg[4:0], new_bit };
+      shift_reg <= { shift_reg [4:0], new_bit };
 
 endmodule
