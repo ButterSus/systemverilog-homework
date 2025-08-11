@@ -41,7 +41,7 @@ module formula_1_impl_2_fsm
     // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
     // You can download this issue from https://fpga-systems.ru/fsm
 
-    enum logic [2:0]
+    enum logic [1:0]
     {
         // Technically, this is Moore machine
         // So its outputs are registered. More about coding conventions of
@@ -50,7 +50,6 @@ module formula_1_impl_2_fsm
         st_idle,
         st_wait_isqrt_ab,
         st_wait_isqrt_c,
-        st_comb,
         st_done  // Output buffering (registering) stage
 
         // Amount of states can be reduced, leading to fewer clock cycles
@@ -77,8 +76,6 @@ module formula_1_impl_2_fsm
             st_wait_isqrt_ab : if (isqrt_1_y_vld && isqrt_2_y_vld)
                 new_state = st_wait_isqrt_c;
             st_wait_isqrt_c : if (isqrt_1_y_vld)
-                new_state = st_comb;
-            st_comb :
                 new_state = st_done;
             st_done :
                 new_state = st_idle;
@@ -126,8 +123,7 @@ module formula_1_impl_2_fsm
 
     logic [31:0] c_reg;
     logic [15:0] isqrt_a_reg,
-                 isqrt_b_reg,
-                 isqrt_c_reg;
+                 isqrt_b_reg;
     logic [17:0] res_reg;
 
     always_ff @ (posedge clk)
@@ -145,12 +141,7 @@ module formula_1_impl_2_fsm
             st_wait_isqrt_c : if (isqrt_1_y_vld) begin
                 // We explicitly state that we want to use 18 bit width addition
                 // Clarification: log2(3 * (2 ** 16 - 1)) > 17
-                isqrt_c_reg <= isqrt_1_y;
-            end
-
-            st_comb : begin
-                res_reg <= 18'(isqrt_a_reg) + 18'(isqrt_b_reg) + 18'(isqrt_c_reg);
-            end
+                res_reg <= 18'(isqrt_1_y) + 18'(isqrt_a_reg) + 18'(isqrt_b_reg);
         endcase
         // verilator lint_on CASEINCOMPLETE
 
