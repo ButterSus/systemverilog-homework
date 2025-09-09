@@ -38,10 +38,10 @@ module float_discriminant (
     // f_sub are just wally_fpu wrappers.
 
     // Computation steps:
-    // 1. Compute b * b.
-    // 2. Compute 4 * a * c. Multiplication by 4 is easy as long as we are
+    // 1. Compute 4 * a * c. Multiplication by 4 is easy as long as we are
     // able to shift exponent. But we know exact bits slice of exponent so
     // that's okay.
+    // 2. Compute b * b.
     // 3. Compute (b * b) - (4 * a * c).
     
     // Since modules are pipelined, it'll make sense to use request-track FSMs
@@ -62,8 +62,8 @@ module float_discriminant (
     // Main (+Request) FSM states
     enum logic [1:0]
     {
-        IDLE,  // replaces REQ_MULT_BB
-        REQ_MULT_AC,
+        IDLE,  // replaces REQ_MULT_AC
+        REQ_MULT_BB,
         WAIT_MULT,
         WAIT_SUB
     }
@@ -73,8 +73,8 @@ module float_discriminant (
     enum logic [1:0]
     {
         TRACK_IDLE,
-        TRACK_MULT_BB,
-        TRACK_MULT_AC
+        TRACK_MULT_AC,
+        TRACK_MULT_BB
     }
     track_mult_state, new_track_mult_state;
 
@@ -90,12 +90,12 @@ module float_discriminant (
 
         case (state)
             IDLE : if (arg_vld)
-                new_state = REQ_MULT_AC;
+                new_state = REQ_MULT_BB;
 
-            REQ_MULT_AC :
+            REQ_MULT_BB :
                 new_state = WAIT_MULT;
 
-            WAIT_MULT : if ((track_mult_state == TRACK_MULT_AC) && f_mult_vld)
+            WAIT_MULT : if ((track_mult_state == TRACK_MULT_BB) && f_mult_vld)
                 new_state = WAIT_SUB;
 
             WAIT_SUB : if (f_sub_vld)
@@ -111,12 +111,12 @@ module float_discriminant (
 
         case (track_mult_state)
             TRACK_IDLE : if ((state == IDLE) && arg_vld)
-                new_track_mult_state = TRACK_MULT_BB;
-
-            TRACK_MULT_BB : if (f_mult_vld)
                 new_track_mult_state = TRACK_MULT_AC;
 
             TRACK_MULT_AC : if (f_mult_vld)
+                new_track_mult_state = TRACK_MULT_BB;
+
+            TRACK_MULT_BB : if (f_mult_vld)
                 new_track_mult_state = TRACK_IDLE;
         endcase
     end
@@ -229,15 +229,15 @@ module float_discriminant (
 
         case (state)
             IDLE : begin
-                f_mult_a = b;
-                f_mult_b = b;
+                f_mult_a = a;
+                f_mult_b = c;
 
                 f_mult_arg_vld = arg_vld;
             end
 
-            REQ_MULT_AC : begin
-                f_mult_a = a_reg;
-                f_mult_b = c_reg;
+            REQ_MULT_BB : begin
+                f_mult_a = b_reg;
+                f_mult_b = b_reg;
 
                 f_mult_arg_vld = 1'b1;
             end
@@ -252,34 +252,33 @@ module float_discriminant (
 
         case (state)
             WAIT_MULT : begin
-                f_sub_a = bb_or_res_reg;
-                f_sub_b = ac4;
+                f_sub_a = f_mult_res;
+                f_sub_b = ac4_or_res_reg;
 
-                f_sub_arg_vld = (track_mult_state == TRACK_MULT_AC) && f_mult_vld;
+                f_sub_arg_vld = (track_mult_state == TRACK_MULT_BB) && f_mult_vld;
             end
         endcase
     end
 
     // Datapath : Storing
 
-    logic [FLEN - 1:0] a_reg, c_reg, bb_or_res_reg, ac4;
+    logic [FLEN - 1:0] b_reg, ac4_or_res_reg, ac4;
 
     always_ff @ (posedge clk)
         case (state)
             IDLE : if (arg_vld) begin
-                a_reg <= a;
-                c_reg <= c;
+                b_reg <= b;
             end
 
             WAIT_SUB : if (f_sub_vld) begin
-                bb_or_res_reg <= f_sub_res;
+                ac4_or_res_reg <= f_sub_res;
             end
         endcase
 
     always_ff @ (posedge clk)
         case (track_mult_state)
-            TRACK_MULT_BB : if (f_mult_vld) begin
-                bb_or_res_reg <= f_mult_res;
+            TRACK_MULT_AC : if (f_mult_vld) begin
+                ac4_or_res_reg <= ac4;
             end
         endcase
 
@@ -296,8 +295,8 @@ module float_discriminant (
             res_vld <= ((state == WAIT_SUB) && f_sub_vld
                 || (state != IDLE || arg_vld) && next_err);
 
-    assign res = res_vld ? bb_or_res_reg : 'x;
-    assign res_negative = res_vld ? bb_or_res_reg [FLEN - 1] : 'x;
+    assign res = res_vld ? ac4_or_res_reg : 'x;
+    assign res_negative = res_vld ? ac4_or_res_reg [FLEN - 1] : 'x;
     assign busy = (state != IDLE);
 
 endmodule
