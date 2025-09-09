@@ -252,7 +252,7 @@ module float_discriminant (
 
         case (state)
             WAIT_MULT : begin
-                f_sub_a = bb_reg;
+                f_sub_a = bb_or_res_reg;
                 f_sub_b = ac4;
 
                 f_sub_arg_vld = (track_mult_state == TRACK_MULT_AC) && f_mult_vld;
@@ -262,7 +262,7 @@ module float_discriminant (
 
     // Datapath : Storing
 
-    logic [FLEN - 1:0] a_reg, c_reg, bb_reg, ac4, res_reg;
+    logic [FLEN - 1:0] a_reg, c_reg, bb_or_res_reg, ac4;
 
     always_ff @ (posedge clk)
         case (state)
@@ -272,14 +272,14 @@ module float_discriminant (
             end
 
             WAIT_SUB : if (f_sub_vld) begin
-                res_reg <= f_sub_res;
+                bb_or_res_reg <= f_sub_res;
             end
         endcase
 
     always_ff @ (posedge clk)
         case (track_mult_state)
             TRACK_MULT_BB : if (f_mult_vld) begin
-                bb_reg <= f_mult_res;
+                bb_or_res_reg <= f_mult_res;
             end
         endcase
 
@@ -296,8 +296,8 @@ module float_discriminant (
             res_vld <= ((state == WAIT_SUB) && f_sub_vld
                 || (state != IDLE || arg_vld) && next_err);
 
-    assign res = res_vld ? res_reg : 'x;
-    assign res_negative = res_vld ? res_reg [FLEN - 1] : 'x;
+    assign res = res_vld ? bb_or_res_reg : 'x;
+    assign res_negative = res_vld ? bb_or_res_reg [FLEN - 1] : 'x;
     assign busy = (state != IDLE);
 
 endmodule
