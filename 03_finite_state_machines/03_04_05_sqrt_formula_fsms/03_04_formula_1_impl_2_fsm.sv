@@ -49,20 +49,9 @@ module formula_1_impl_2_fsm
 
         st_idle,
         st_wait_isqrt_ab,
-        st_wait_isqrt_c,
-        st_done  // Output buffering (registering) stage
-
-        // Amount of states can be reduced, leading to fewer clock cycles
-        // needed to complete computing. However, it's much easier to maintain
-        // code with more states.
+        st_wait_isqrt_c
     }
     state, new_state;
-
-    // Clarification: isqrt module doesn't require holding valid input for any
-    // longer than 1 clock cycle.
-
-    // Also st_idle can't be held once computing started. It can be used to
-    // indicate whether device is ready for new request or not.
 
     // State logic
 
@@ -76,8 +65,6 @@ module formula_1_impl_2_fsm
             st_wait_isqrt_ab : if (isqrt_1_y_vld && isqrt_2_y_vld)
                 new_state = st_wait_isqrt_c;
             st_wait_isqrt_c : if (isqrt_1_y_vld)
-                new_state = st_done;
-            st_done :
                 new_state = st_idle;
         endcase
         // verilator lint_on CASEINCOMPLETE
@@ -113,7 +100,7 @@ module formula_1_impl_2_fsm
             st_wait_isqrt_ab : begin
                 isqrt_1_x_vld = isqrt_1_y_vld && isqrt_2_y_vld;
 
-                isqrt_1_x = c_reg;
+                isqrt_1_x = tmp_reg;
             end
         endcase
         // verilator lint_on CASEINCOMPLETE
@@ -121,33 +108,39 @@ module formula_1_impl_2_fsm
 
     // Datapath: Storing
 
-    logic [31:0] c_reg;
+    logic [31:0] tmp_reg;  // register for 'reg' and 'c'
     logic [15:0] isqrt_a_reg,
                  isqrt_b_reg;
-    logic [17:0] res_reg;
 
     always_ff @ (posedge clk)
         // verilator lint_off CASEINCOMPLETE
         case (state)
             st_idle : if (arg_vld) begin
-                c_reg <= c;
+                tmp_reg <= c;
             end
 
-            st_wait_isqrt_ab : if (isqrt_1_y_vld && isqrt_2_y_vld) begin
+            st_wait_isqrt_ab : if (isqrt_1_y_vld & isqrt_2_y_vld) begin
                 isqrt_a_reg <= isqrt_1_y;
                 isqrt_b_reg <= isqrt_2_y;
             end
 
             st_wait_isqrt_c : if (isqrt_1_y_vld) begin
                 // We explicitly state that we want to use 18 bit width addition
-                // Clarification: log2(3 * (2 ** 16 - 1)) > 17
-                res_reg <= 18'(isqrt_1_y) + 18'(isqrt_a_reg) + 18'(isqrt_b_reg);
+                // Clarification: 17 < log2(3 * (2 ** 16 - 1)) <= 18
+                tmp_reg <= {14'd0, 18'(isqrt_1_y) + 18'(isqrt_a_reg) + 18'(isqrt_b_reg)};
+            end
         endcase
         // verilator lint_on CASEINCOMPLETE
 
     // Output logic
 
-    assign res = res_vld ? 32'(res_reg) : 'x;
-    assign res_vld = (state == st_done);
+    always_ff @ (posedge clk)
+        // We put res_vld here (and not in datapath storing) since it needs to be reset
+        if (rst)
+            res_vld <= 1'b0;
+        else
+            res_vld <= (state == st_wait_isqrt_c) && (isqrt_1_y_vld);
+
+    assign res = res_vld ? tmp_reg : 'x;
 
 endmodule

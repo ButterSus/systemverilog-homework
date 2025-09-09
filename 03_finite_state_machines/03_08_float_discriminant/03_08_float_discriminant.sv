@@ -30,14 +30,14 @@ module float_discriminant (
     // The FLEN parameter is defined in the "import/preprocessed/cvw/config-shared.vh" file
     // and usually equal to the bit width of the double-precision floating-point number, FP64, 64 bits.
 
-    // I'll prioritize using as least inner modules as possible. Therefore,
-    // we'll need one instance for each float operation of all kinds:
-    // multiplication, subtraction, respectively f_mult and f_sub.
+    // I'll prioritize using least amount of inner modules.
+    // Need one instance for each float operation of all kinds:
+    // multiplication, subtraction: respectively f_mult and f_sub.
 
-    // (I suppose we shouldn't instantiate wally_fpu, even though it could
-    // have saved resources.)
+    // I suppose we shouldn't instantiate wally_fpu, even though f_mult and
+    // f_sub are just wally_fpu wrappers.
 
-    // Algorithm steps:
+    // Computation steps:
     // 1. Compute b * b.
     // 2. Compute 4 * a * c. Multiplication by 4 is easy as long as we are
     // able to shift exponent. But we know exact bits slice of exponent so
@@ -51,29 +51,37 @@ module float_discriminant (
     // independent on whether we received packets or not.
     // Other will receive packets.
 
+    // I decided to simplify task, by ignoring `busy` output of FPU.
+    // Even though initial solution was, therefore, much more complex
+
     // Instead of creating separate FSM for requesting packets, we'll merge its
     // states into main FSM, also note that one request state is merged with
     // IDLE state. Also for this specific case I decided to use uppercase enum
     // values convention since otherwise names will be too long.
 
     // Main (+Request) FSM states
-    enum logic [2:0]
+    enum logic [1:0]
     {
         IDLE,  // replaces REQ_MULT_BB
-        REQ_MULT_AC,  // also waits for BB and AC
-        WAIT_SUB,
-        DONE
+        REQ_MULT_AC,
+        WAIT_MULT,
+        WAIT_SUB
     }
     state, new_state;
 
     // Track FSM states for pipelined multiplication
     enum logic [1:0]
     {
+        TRACK_IDLE,
         TRACK_MULT_BB,
-        TRACK_MULT_AC,
-        TRACK_DONE
+        TRACK_MULT_AC
     }
     track_mult_state, new_track_mult_state;
+
+    // Error logic
+
+    logic next_err;
+    assign next_err = f_mult_err && f_mult_vld || f_sub_err && f_sub_vld;
 
     // State logic
 
@@ -81,71 +89,35 @@ module float_discriminant (
         new_state = state;
 
         case (state)
-            // We need to check if we received valid arguments before or now,
-            // and if multiplier is not busy.
-            IDLE : 
-                if (
-                    (
-                           valid_captured_flag
-                        || arg_vld
-                    ) &&
-                    !f_mult_busy
-                )
-                    new_state = REQ_MULT_AC;
+            IDLE : if (arg_vld)
+                new_state = REQ_MULT_AC;
 
-            // We need to check if we finish tracking multiplier output now
-            // finished it before, and if subtractor is not busy.
             REQ_MULT_AC :
-                if (
-                    f_mult_vld && (
-                           (track_mult_state == TRACK_MULT_BB)
-                        || (track_mult_state == TRACK_MULT_AC)
-                    ) &&
-                    f_mult_err
-                )
-                    new_state = DONE;
+                new_state = WAIT_MULT;
 
-                else if (
-                    (
-                           (track_mult_state == TRACK_MULT_AC) && f_mult_vld
-                        || (track_mult_state == TRACK_DONE)
-                    ) &&
-                    !f_sub_busy
-                )
-                    new_state = WAIT_SUB;
+            WAIT_MULT : if ((track_mult_state == TRACK_MULT_AC) && f_mult_vld)
+                new_state = WAIT_SUB;
 
-            // We don't need to check if anything is not busy, so transition
-            // is always possible and there is no need in latching.
-            WAIT_SUB :
-                if (f_sub_vld && f_sub_err)
-                    new_state = DONE;
-                else if (f_sub_vld)
-                    new_state = DONE;
-
-            DONE :
+            WAIT_SUB : if (f_sub_vld)
                 new_state = IDLE;
         endcase
+
+        if (next_err)
+            new_state = IDLE;
     end
 
     always_comb begin
         new_track_mult_state = track_mult_state;
 
         case (track_mult_state)
+            TRACK_IDLE : if ((state == IDLE) && arg_vld)
+                new_track_mult_state = TRACK_MULT_BB;
+
             TRACK_MULT_BB : if (f_mult_vld)
                 new_track_mult_state = TRACK_MULT_AC;
 
             TRACK_MULT_AC : if (f_mult_vld)
-                new_track_mult_state = TRACK_DONE;
-
-            TRACK_DONE : if (
-                (state == IDLE) &&
-                ( 
-                       valid_captured_flag
-                    || arg_vld
-                ) &&
-                !f_mult_busy
-            )
-                new_track_mult_state = TRACK_MULT_BB;
+                new_track_mult_state = TRACK_IDLE;
         endcase
     end
 
@@ -157,14 +129,14 @@ module float_discriminant (
 
     always_ff @ (posedge clk)
         if (rst)
-            track_mult_state <= TRACK_DONE;
+            track_mult_state <= TRACK_IDLE;
         else
             track_mult_state <= new_track_mult_state;
 
     // Module instantiations
 
     logic [FLEN - 1:0] f_mult_a, f_mult_b, f_mult_res;
-    logic f_mult_arg_vld, f_mult_vld, f_mult_busy, f_mult_err;
+    logic f_mult_arg_vld, f_mult_vld, /* f_mult_busy, */ f_mult_err;
 
     f_mult i_fmult
     (
@@ -175,12 +147,12 @@ module float_discriminant (
         .up_valid   ( f_mult_arg_vld ),
         .res        ( f_mult_res     ),
         .down_valid ( f_mult_vld     ),
-        .busy       ( f_mult_busy    ),
+        /* .busy       ( f_mult_busy    ), */
         .error      ( f_mult_err     )
     );
 
     logic [FLEN - 1:0] f_sub_a, f_sub_b, f_sub_res;
-    logic f_sub_arg_vld, f_sub_vld, f_sub_busy, f_sub_err;
+    logic f_sub_arg_vld, f_sub_vld, /* f_sub_busy, */ f_sub_err;
 
     f_sub i_fsub
     (
@@ -191,82 +163,63 @@ module float_discriminant (
         .up_valid   ( f_sub_arg_vld ),
         .res        ( f_sub_res     ),
         .down_valid ( f_sub_vld     ),
-        .busy       ( f_sub_busy    ),
+        /* .busy       ( f_sub_busy    ), */
         .error      ( f_sub_err     )
     );
 
-    // Luckily, there is no need for FIFO to handle back pressure since this
-    // is FSM.
-
     // Datapath : Loading
-
-    logic valid_emitted_flag;
-
-    always_ff @ (posedge clk)
-        if (rst) begin
-            valid_emitted_flag <= 1'b0;
-        end
-        else begin
-            case (state)
-                DONE :
-                    valid_emitted_flag <= 1'b0;
-
-                REQ_MULT_AC : if (!f_mult_busy)
-                    valid_emitted_flag <= 1'b1;
-            endcase
-        end
 
     // My verilator tells me it can't find definition of variable NE, NF
     // So it doesn't dump me any warnings
 
-    logic            ac_l_sign,     ac4_l_sign;
-    logic [NE - 1:0] ac_l_exponent, ac4_l_exponent;
-    logic [NF - 1:0] ac_l_fraction, ac4_l_fraction;
+    logic            ac_sign,     ac4_sign;
+    logic [NE - 1:0] ac_exponent, ac4_exponent;
+    logic [NF - 1:0] ac_fraction, ac4_fraction;
 
-    always_comb begin : ac_l_extract
-        ac_l_sign     = ac_l [FLEN - 1];
-        ac_l_exponent = ac_l [FLEN - 2:NF];
-        ac_l_fraction = ac_l [NF - 1:0];
+    always_comb begin
+        { ac_sign, ac_exponent, ac_fraction } = ((track_mult_state == TRACK_MULT_AC) && f_mult_vld)
+            ? { f_mult_res [FLEN - 1], f_mult_res [FLEN - 2:NF], f_mult_res [NF - 1:0] }
+            : { 'x, 'x, 'x };
     end
 
-    always_comb begin : ac4_l_logic
-        ac4_l_sign     = ac_l_sign;
-        ac4_l_exponent = ac_l_exponent;
-        ac4_l_fraction = ac_l_fraction;
+    always_comb begin
+        ac4_sign     = ac_sign;
+        ac4_exponent = ac_exponent;
+        ac4_fraction = ac_fraction;
 
         // Handle special cases
-        if (ac_l_exponent == { NE {1'b0} }) begin
+        if (ac_exponent == { NE {1'b0} }) begin
             // Zero
-            if (ac_l_fraction == { NF {1'b0} }) /* ac4_l_exponent = ac_l_exponent */;  // Default
+            if (ac_fraction == { NF {1'b0} }) /* ac4_exponent = ac_exponent */;  // Default
 
             // Denormalized (Undefined)
             else begin
-                ac4_l_exponent = { NF {1'bx} };
-                ac4_l_fraction = { NF {1'bx} };
+                ac4_exponent = { NF {1'bx} };
+                ac4_fraction = { NF {1'bx} };
             end
         end
-        else if (ac_l_exponent == { NE {1'b1} }) begin
+        else if (ac_exponent == { NE {1'b1} }) begin
             // Infinity
-            if (ac_l_fraction == { NF {1'b0} }) /* ac4_l_exponent = ac_l_exponent */;  // Default
+            if (ac_fraction == { NF {1'b0} }) /* ac4_exponent = ac_exponent */;  // Default
 
             // NAN
-            else /* ac4_l_exponent = ac_l_exponent */;  // Propagate
+            else /* ac4_exponent = ac_exponent */;  // Propagate
         end
         else begin
             logic [NE:0] temp_exponent;
 
-            temp_exponent = { 1'b0, ac_l_exponent } + 2'd2;
+            temp_exponent = { 1'b0, ac_exponent } + 2'd2;
 
             if (temp_exponent >= { NE {1'b1} }) begin
                 // Overflow to infinity
-                ac4_l_exponent = { NE {1'b1} };
-                ac4_l_fraction = { NF {1'b0} };
+                ac4_exponent = { NE {1'b1} };
+                ac4_fraction = { NF {1'b0} };
             end
-            else ac4_l_exponent = temp_exponent [NE - 1:0];
+            else ac4_exponent = temp_exponent [NE - 1:0];
         end
     end
 
-    assign ac4_l = { ac4_l_sign, ac4_l_exponent, ac4_l_fraction };
+    assign ac4 = { ac4_sign, ac4_exponent, ac4_fraction };
 
     always_comb begin
         f_mult_a = 'x;
@@ -276,23 +229,17 @@ module float_discriminant (
 
         case (state)
             IDLE : begin
-                f_mult_a = b_l;
-                f_mult_b = b_l;
+                f_mult_a = b;
+                f_mult_b = b;
 
-                f_mult_arg_vld =
-                    (
-                           valid_captured_flag
-                        || arg_vld
-                    ) &&
-                    !f_mult_busy;
+                f_mult_arg_vld = arg_vld;
             end
 
             REQ_MULT_AC : begin
                 f_mult_a = a_reg;
                 f_mult_b = c_reg;
 
-                // Emitted flag prevents from sending multiple requests
-                f_mult_arg_vld = !valid_emitted_flag && !f_mult_busy;
+                f_mult_arg_vld = 1'b1;
             end
         endcase
     end
@@ -304,52 +251,18 @@ module float_discriminant (
         f_sub_arg_vld = 1'b0;
 
         case (state)
-            REQ_MULT_AC : begin
-                f_sub_a = bb_l;
-                f_sub_b = ac4_l;
+            WAIT_MULT : begin
+                f_sub_a = bb_reg;
+                f_sub_b = ac4;
 
-                f_sub_arg_vld =
-                    (
-                           (track_mult_state == TRACK_MULT_AC) && f_mult_vld
-                        || (track_mult_state == TRACK_DONE)
-                    ) &&
-                    !f_sub_busy;
+                f_sub_arg_vld = (track_mult_state == TRACK_MULT_AC) && f_mult_vld;
             end
         endcase
     end
 
     // Datapath : Storing
 
-    logic [FLEN - 1:0] a_reg, b_l, c_reg,
-                       bb_l, ac_l, ac4_l,  // l stands for latch
-                       res_reg;
-    logic valid_captured_flag;
-
-    always_ff @ (posedge clk)
-        if (rst) begin
-            valid_captured_flag <= 1'b0;
-        end
-        else
-            case (state)
-                // We need it only in IDLE state, but it's just a coincidence and
-                // if formula was more complex, there would be more states.
-                IDLE : if (arg_vld) begin
-                    valid_captured_flag <= f_mult_busy;
-                end
-            endcase
-
-    // NOTE: Friendly reminder why SystemVerilog developers generally
-    // prefer always_ff over always_latch when possible :
-
-    // "In ASIC design, latches are generally not cheaper than flip-flops.
-    // While latches can use fewer gates and potentially require less area, 
-    // making them theoretically cheaper, the complexities of testing and 
-    // timing closure in a latch-based design often negate any initial cost 
-    // savings. Flip-flops are preferred in most ASIC designs due to their 
-    // synchronous nature, which simplifies timing analysis and testing".
-
-    // In this case, I intentionally want to store and use output at the same
-    // time. Latches are perfect for this.
+    logic [FLEN - 1:0] a_reg, c_reg, bb_reg, ac4, res_reg;
 
     always_ff @ (posedge clk)
         case (state)
@@ -357,37 +270,34 @@ module float_discriminant (
                 a_reg <= a;
                 c_reg <= c;
             end
-        endcase
-
-    always_latch
-        case (state)
-            IDLE : if (arg_vld) begin
-                b_l = b;
-            end
-
-            REQ_MULT_AC : if (f_mult_vld)
-                case (track_mult_state)
-                    TRACK_MULT_BB : begin
-                        bb_l = f_mult_res;
-                        err = f_mult_err;
-                    end
-                    TRACK_MULT_AC : begin
-                        ac_l = f_mult_res;
-                        err = f_mult_err;
-                    end
-                endcase
 
             WAIT_SUB : if (f_sub_vld) begin
-                res_reg = f_sub_res;
-                err = f_sub_err;
+                res_reg <= f_sub_res;
+            end
+        endcase
+
+    always_ff @ (posedge clk)
+        case (track_mult_state)
+            TRACK_MULT_BB : if (f_mult_vld) begin
+                bb_reg <= f_mult_res;
             end
         endcase
 
     // Output logic
 
+    always_ff @ (posedge clk)
+        if (state != IDLE || arg_vld)
+            err <= next_err;
+
+    always_ff @ (posedge clk)
+        if (rst)
+            res_vld <= 1'b0;
+        else
+            res_vld <= ((state == WAIT_SUB) && f_sub_vld
+                || (state != IDLE || arg_vld) && next_err);
+
     assign res = res_vld ? res_reg : 'x;
     assign res_negative = res_vld ? res_reg [FLEN - 1] : 'x;
-    assign res_vld = (state == DONE);
-    assign busy = (state != IDLE) && !valid_captured_flag;
+    assign busy = (state != IDLE);
 
 endmodule

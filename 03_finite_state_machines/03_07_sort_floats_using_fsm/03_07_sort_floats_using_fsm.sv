@@ -40,8 +40,7 @@ module sort_floats_using_fsm (
     {
         st_idle,  // replaces st_comp_u0_le_u1
         st_comp_u0_le_u2,
-        st_comp_u1_le_u2,
-        st_done
+        st_comp_u1_le_u2
     }
     state, new_state;
 
@@ -52,26 +51,18 @@ module sort_floats_using_fsm (
 
         case (state)
             st_idle :
-                if (f_le_err)
-                    new_state = st_done;
-                else if (valid_in)
+                if (valid_in)
                     new_state = st_comp_u0_le_u2;
 
             st_comp_u0_le_u2 :
-                if (f_le_err)
-                    new_state = st_done;
-                else
-                    new_state = st_comp_u1_le_u2;
+                new_state = st_comp_u1_le_u2;
 
             st_comp_u1_le_u2 :
-                if (f_le_err)
-                    new_state = st_done;
-                else
-                    new_state = st_done;
-
-            st_done :
                 new_state = st_idle;
         endcase
+
+        if (f_le_err)
+            new_state = st_idle;
     end
 
     always_ff @ (posedge clk)
@@ -93,49 +84,43 @@ module sort_floats_using_fsm (
             end
 
             st_comp_u0_le_u2 : begin
-                f_le_a = unsorted_reg [0];
-                f_le_b = unsorted_reg [2];
+                f_le_a = tmp_reg [0];
+                f_le_b = tmp_reg [2];
             end
 
             st_comp_u1_le_u2 : begin
-                f_le_a = unsorted_reg [1];
-                f_le_b = unsorted_reg [2];
+                f_le_a = tmp_reg [1];
+                f_le_b = tmp_reg [2];
             end
         endcase
     end
 
     // Datapath : Storing
 
-    logic [0:2][FLEN - 1:0] unsorted_reg;
-    logic [0:2][FLEN - 1:0] sorted_reg;
+    logic [0:2][FLEN - 1:0] tmp_reg;
 
     logic res_u0_le_u1_reg,
           res_u0_le_u2_reg;
-          /* res_u1_le_u2_reg; */  // Not needed
 
     always_ff @ (posedge clk)
         case (state)
             st_idle : begin
-                if (valid_in) begin
-                    unsorted_reg <= unsorted;
-                    res_u0_le_u1_reg <= f_le_res;
+                res_u0_le_u1_reg <= 'x;
 
-                    err <= f_le_err;
+                if (valid_in) begin
+                    tmp_reg <= unsorted;
+                    res_u0_le_u1_reg <= f_le_res;
                 end
             end
 
             st_comp_u0_le_u2 : begin
                 res_u0_le_u2_reg <= f_le_res;
-
-                err <= f_le_err;
             end
 
             st_comp_u1_le_u2 : begin
-                sorted_reg [0] <= unsorted_reg [sidx0];
-                sorted_reg [1] <= unsorted_reg [sidx1];
-                sorted_reg [2] <= unsorted_reg [sidx2];
-
-                err <= f_le_err;
+                tmp_reg [0] <= tmp_reg [sidx0];
+                tmp_reg [1] <= tmp_reg [sidx1];
+                tmp_reg [2] <= tmp_reg [sidx2];
             end
         endcase
 
@@ -184,8 +169,17 @@ module sort_floats_using_fsm (
 
     // Output logic
 
-    assign sorted = valid_out ? sorted_reg : 'x;
-    assign valid_out = (state == st_done);
+    always_ff @ (posedge clk)
+        if (state != st_idle || valid_in)
+            err <= f_le_err;
+
+    always_ff @ (posedge clk)
+        if (rst)
+            valid_out <= 1'b0;
+        else
+            valid_out <= (state == st_comp_u1_le_u2 || (state != st_idle || valid_in) && f_le_err);
+
+    assign sorted = valid_out ? tmp_reg : 'x;
     assign busy = (state != st_idle);
 
 endmodule
