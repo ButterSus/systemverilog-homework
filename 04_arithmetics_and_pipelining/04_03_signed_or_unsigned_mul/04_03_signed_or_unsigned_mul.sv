@@ -53,4 +53,17 @@ module signed_or_unsigned_mul
   output [2 * n - 1:0] res
 );
 
+  // Based on: https://en.wikipedia.org/wiki/Binary_multiplier#Signed_integers
+  // I even needed some math with equations here lol.
+
+  logic [2 * n - 1:0] tmp_prod;
+  assign tmp_prod = a * b;
+
+  assign res [    n - 1:0] = tmp_prod [n - 1:0];
+  assign res [2 * n - 1:n] = 
+    tmp_prod [2 * n - 1:n] - (
+        (b & { n { a [n - 1] & signed_mul } }) 
+      + (a & { n { b [n - 1] & signed_mul } })
+    );
+
 endmodule

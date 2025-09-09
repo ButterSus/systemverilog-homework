@@ -36,5 +36,15 @@ module signed_add_with_overflow
   // of two input arguments does not fit into 4 bits.
   // Otherwise the 'overflow' should be set to 0.
 
+  // "Overflow condition is determined by exclusive or of the carry-in and the
+  // carry-out of the most significant bit."
+
+  logic [2:0] partial_sum;
+  logic last_bit_cin, last_bit_cout;
+
+  assign { last_bit_cin, partial_sum } = a [2:0] + b [2:0];
+
+  assign { last_bit_cout, sum } = { 2'(a [3] + b [3] + last_bit_cin), partial_sum };
+  assign overflow = last_bit_cin ^ last_bit_cout;
 
 endmodule
