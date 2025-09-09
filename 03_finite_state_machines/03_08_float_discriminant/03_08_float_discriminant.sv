@@ -81,7 +81,7 @@ module float_discriminant (
     // Error logic
 
     logic next_err;
-    assign next_err = f_mult_err && f_mult_vld || f_sub_err && f_sub_vld;
+    assign next_err = f_mult_vld && (f_mult_err === 1'b1) || f_sub_vld && (f_sub_err === 1'b1);
 
     // State logic
 
