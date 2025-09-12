@@ -78,5 +78,29 @@ module shift_register_with_valid
     // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
     // You can download this issue from https://fpga-systems.ru/fsm#state_0
 
+    // data[i][0] for any i, are used to pass "validation bit", once it
+    // hits the left end (data[0][0]), it means out_vld can be set to 1'b1
+
+    logic [width - 1:0] data [0:depth - 1];
+    logic               vld  [0:depth - 1];
+
+    always_ff @ (posedge clk)
+        if (rst) begin
+            for (int i = 0; i < depth; i ++)
+                vld [i] <= 1'b0;
+        end
+        else begin : gen_shifted_bits
+            vld  [0] <= in_vld;
+            if (in_vld)
+                data [0] <= in_data;
+
+            for (int i = 1; i < depth; i ++) begin
+                vld  [i] <= vld  [i - 1];
+                data [i] <= data [i - 1];
+            end
+        end
+
+    assign out_data = out_vld ? data [depth - 1] : 'x;
+    assign out_vld  = vld [depth - 1];
 
 endmodule

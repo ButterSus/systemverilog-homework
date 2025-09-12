@@ -61,5 +61,149 @@ module formula_1_pipe_aware_fsm
     // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
     // You can download this issue from https://fpga-systems.ru/fsm#state_0
 
+    // Request FSM
+    // ===========
+
+    enum logic [1:0]
+    {
+        IDLE,  // replaces TX_ISQRT_A
+        TX_ISQRT_B,
+        TX_ISQRT_C
+    }
+    state, new_state;
+
+    // State logic
+
+    always_comb begin
+        new_state = state;
+
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            IDLE : if (arg_vld)
+                new_state = TX_ISQRT_B;
+            TX_ISQRT_B :
+                new_state = TX_ISQRT_C;
+            TX_ISQRT_C :
+                new_state = IDLE;
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+    end
+
+    always_ff @ (posedge clk)
+        if (rst)
+            state <= IDLE;
+        else
+            state <= new_state;
+
+    // Datapath : Loading
+
+    always_comb begin
+        isqrt_x = 'x;
+
+        isqrt_x_vld = 1'b0;
+
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            IDLE : begin
+                isqrt_x = a;
+                
+                isqrt_x_vld = arg_vld;
+            end
+
+            TX_ISQRT_B : begin
+                isqrt_x = b_reg;
+
+                isqrt_x_vld = 1'b1;
+            end
+
+            TX_ISQRT_C : begin
+                isqrt_x = c_reg;
+
+                isqrt_x_vld = 1'b1;
+            end
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+    end
+
+    // Datapath : Storing
+
+    logic [31:0] b_reg, c_reg;
+
+    always_ff @ (posedge clk)
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            IDLE : if (arg_vld) begin
+                b_reg <= b;
+                c_reg <= c;
+            end
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+
+    // Receive FSM
+    // ===========
+
+    enum logic [1:0]
+    {
+        RX_ISQRT_A,
+        RX_ISQRT_B,
+        RX_ISQRT_C
+    }
+    rx_state, new_rx_state;
+
+    // State logic
+
+    always_comb begin
+        new_rx_state = rx_state;
+
+        // verilator lint_off CASEINCOMPLETE
+        case (rx_state)
+            RX_ISQRT_A : if (isqrt_y_vld)
+                new_rx_state = RX_ISQRT_B;
+            RX_ISQRT_B : if (isqrt_y_vld)
+                new_rx_state = RX_ISQRT_C;
+            RX_ISQRT_C : if (isqrt_y_vld)
+                new_rx_state = RX_ISQRT_A;
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+    end
+
+    always_ff @ (posedge clk)
+        if (rst)
+            rx_state <= RX_ISQRT_A;
+        else
+            rx_state <= new_rx_state;
+
+    // Datapath : Storing
+
+    logic [15:0] isqrt_a_reg,
+                 isqrt_b_reg;
+                 /* isqrt_c_reg; */
+
+    always_ff @ (posedge clk)
+        // verilator lint_off CASEINCOMPLETE
+        case (rx_state)
+            RX_ISQRT_A : if (isqrt_y_vld)
+                isqrt_a_reg <= isqrt_y;
+
+            RX_ISQRT_B : if (isqrt_y_vld)
+                isqrt_b_reg <= isqrt_y;
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+
+    logic [17:0] res_reg;
+
+    always_ff @ (posedge clk)
+        if ((rx_state == RX_ISQRT_C) && isqrt_y_vld)
+            res_reg <= 18'(isqrt_a_reg) + 18'(isqrt_b_reg) + 18'(isqrt_y);
+
+    // Output logic
+
+    always_ff @ (posedge clk)
+        if (rst)
+            res_vld <= '0;
+        else
+            res_vld <= (rx_state == RX_ISQRT_C) && isqrt_y_vld;
+
+    assign res = res_vld ? 32'(res_reg) : 'x;
 
 endmodule
