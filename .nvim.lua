@@ -7,4 +7,6 @@ lint.linters.verilator.args = {
 	"--timing",
 	"-I./common/",
 	".lint_rules.vlt",
+	"./common/isqrt/isqrt.sv",
+	"./import/preprocessed/cvw/config-shared.vh",
 }
