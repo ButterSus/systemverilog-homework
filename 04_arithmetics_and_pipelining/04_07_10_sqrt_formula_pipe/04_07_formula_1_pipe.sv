@@ -54,7 +54,7 @@ module formula_1_pipe
                  isqrt_b_res,
                  isqrt_c_res;
 
-    isqrt i_isqrt_a
+    isqrt #(.n_pipe_stages(4)) i_isqrt_a
     (
         .clk   ( clk         ),
         .rst   ( rst         ),
@@ -64,7 +64,7 @@ module formula_1_pipe
         .y     ( isqrt_a_res )
     );
 
-    isqrt i_isqrt_b
+    isqrt #(.n_pipe_stages(4)) i_isqrt_b
     (
         .clk   ( clk         ),
         .rst   ( rst         ),
@@ -74,7 +74,7 @@ module formula_1_pipe
         .y     ( isqrt_b_res )
     );
 
-    isqrt i_isqrt_c
+    isqrt #(.n_pipe_stages(4)) i_isqrt_c
     (
         .clk   ( clk         ),
         .rst   ( rst         ),
