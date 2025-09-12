@@ -3,6 +3,10 @@
 //----------------------------------------------------------------------------
 
 module formula_2_pipe
+# (
+    // Amount of stages per isqrt module
+    parameter N = 4
+)
 (
     input         clk,
     input         rst,
@@ -52,7 +56,7 @@ module formula_2_pipe
     logic        isqrt_c_vld;
     logic [15:0] isqrt_c_res;
 
-    isqrt #(.n_pipe_stages(4)) i_isqrt_c
+    isqrt #(.n_pipe_stages(N)) i_isqrt_c
     (
         .clk   ( clk         ),
         .rst   ( rst         ),
@@ -64,8 +68,8 @@ module formula_2_pipe
 
     // Pipelined variables
 
-    logic [31:0] stage_1_a [0:3];
-    logic [31:0] stage_1_b [0:3];
+    logic [31:0] stage_1_a [0:N - 1];
+    logic [31:0] stage_1_b [0:N - 1];
 
     always_ff @ (posedge clk) begin
         if (arg_vld) begin
@@ -73,7 +77,7 @@ module formula_2_pipe
             stage_1_b [0] <= b;
         end
 
-        for (int i = 1; i < 4; i ++) begin
+        for (int i = 1; i < N; i ++) begin
             stage_1_a [i] <= stage_1_a [i - 1];
             stage_1_b [i] <= stage_1_b [i - 1];
         end
@@ -86,26 +90,26 @@ module formula_2_pipe
     logic        isqrt_bc_vld;
     logic [15:0] isqrt_bc_res;
 
-    isqrt #(.n_pipe_stages(4)) i_isqrt_bc
+    isqrt #(.n_pipe_stages(N)) i_isqrt_bc
     (
-        .clk   ( clk                         ),
-        .rst   ( rst                         ),
-        .x_vld ( isqrt_c_vld                 ),
-        .x     ( stage_1_b [3] + isqrt_c_res ),
-        .y_vld ( isqrt_bc_vld                ),
-        .y     ( isqrt_bc_res                )
+        .clk   ( clk                             ),
+        .rst   ( rst                             ),
+        .x_vld ( isqrt_c_vld                     ),
+        .x     ( stage_1_b [N - 1] + isqrt_c_res ),
+        .y_vld ( isqrt_bc_vld                    ),
+        .y     ( isqrt_bc_res                    )
     );
 
     // Pipelined variables
 
-    logic [31:0] stage_2_a [0:3];
+    logic [31:0] stage_2_a [0:N - 1];
 
     always_ff @ (posedge clk) begin
         if (isqrt_c_vld) begin
-            stage_2_a [0] <= stage_1_a [3];
+            stage_2_a [0] <= stage_1_a [N - 1];
         end
 
-        for (int i = 1; i < 4; i ++) begin
+        for (int i = 1; i < N; i ++) begin
             stage_2_a [i] <= stage_2_a [i - 1];
         end
     end
@@ -117,14 +121,14 @@ module formula_2_pipe
     logic        isqrt_abc_vld;
     logic [15:0] isqrt_abc_res;
 
-    isqrt #(.n_pipe_stages(4)) i_isqrt_abc
+    isqrt #(.n_pipe_stages(N)) i_isqrt_abc
     (
-        .clk   ( clk                          ),
-        .rst   ( rst                          ),
-        .x_vld ( isqrt_bc_vld                 ),
-        .x     ( stage_2_a [3] + isqrt_bc_res ),
-        .y_vld ( isqrt_abc_vld                ),
-        .y     ( isqrt_abc_res                )
+        .clk   ( clk                              ),
+        .rst   ( rst                              ),
+        .x_vld ( isqrt_bc_vld                     ),
+        .x     ( stage_2_a [N - 1] + isqrt_bc_res ),
+        .y_vld ( isqrt_abc_vld                    ),
+        .y     ( isqrt_abc_res                    )
     );
 
     // Output logic
