@@ -23,9 +23,7 @@ module formula_2_fsm
     input               isqrt_y_vld,
     input        [15:0] isqrt_y
 );
-
     // Task:
-    //
     // Implement a module that calculates the formula from the `formula_2_fn.svh` file
     // using only one instance of the isqrt module.
     //
@@ -36,5 +34,96 @@ module formula_2_fsm
     // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
     // You can download this issue from https://fpga-systems.ru/fsm
 
+    enum logic [2:0]
+    {
+        st_idle,
+        st_wait_isqrt_c,
+        st_wait_isqrt_b,
+        st_wait_isqrt_a
+    }
+    state, new_state;
+
+    // State logic
+
+    always_comb begin
+        new_state = state;
+
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            st_idle : if (arg_vld)
+                new_state = st_wait_isqrt_c;
+            st_wait_isqrt_c : if (isqrt_y_vld)
+                new_state = st_wait_isqrt_b;
+            st_wait_isqrt_b : if (isqrt_y_vld)
+                new_state = st_wait_isqrt_a;
+            st_wait_isqrt_a : if (isqrt_y_vld)
+                new_state = st_idle;
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+    end
+
+    always_ff @ (posedge clk)
+        if (rst)
+            state <= st_idle;
+        else
+            state <= new_state;
+
+    // Datapath : Loading
+
+    always_comb begin
+        isqrt_x_vld = 1'b0;
+
+        isqrt_x = 'x;
+
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            st_idle : begin
+                isqrt_x_vld = arg_vld;
+
+                isqrt_x = c;
+            end
+
+            st_wait_isqrt_c : begin
+                isqrt_x_vld = isqrt_y_vld;
+
+                isqrt_x = 32'(isqrt_y) + b_reg;
+            end
+
+            st_wait_isqrt_b : begin
+                isqrt_x_vld = isqrt_y_vld;
+
+                isqrt_x = 32'(isqrt_y) + a_or_res_reg;
+            end
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+    end
+
+    // Datapath : Storing
+
+    logic [31:0] a_or_res_reg, b_reg;
+
+    always_ff @ (posedge clk)
+        // verilator lint_off CASEINCOMPLETE
+        case (state)
+            st_idle : if (arg_vld) begin
+                a_or_res_reg <= a;
+                b_reg <= b;
+            end
+
+            st_wait_isqrt_a : if (isqrt_y_vld) begin
+                a_or_res_reg <= 32'(isqrt_y);
+            end
+        endcase
+        // verilator lint_on CASEINCOMPLETE
+
+    // Output logic
+
+    always_ff @ (posedge clk)
+        if (rst)
+            res_vld <= 1'b0;
+        else
+            res_vld <= (state == st_wait_isqrt_a) && (isqrt_y_vld);
+
+    assign res = res_vld ? 32'(a_or_res_reg) : 'x;
 
 endmodule
