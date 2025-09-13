@@ -208,4 +208,7 @@ module sqrt_formula_distributor
         end
     endgenerate
 
+    // NOTE: if you set buffer = 2, testbench will fail due to
+    // formula_1_impl_1_top not remembering input values (b, c)
+
 endmodule
