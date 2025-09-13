@@ -37,7 +37,7 @@ module float_discriminant_distributor (
     // Stage 1: Buffering demux output
     //----------------------------------------------------------------------------
 
-    logic [63:0] fsm_a [N], fsm_b [N], fsm_c [N], fsm_res [N];
+    logic [FLEN - 1:0] fsm_a [N], fsm_b [N], fsm_c [N], fsm_res [N];
     logic        fsm_arg_vld [N], fsm_res_vld [N], fsm_res_negative [N],
                  fsm_err [N]/* , fsm_busy [N] */;
 
