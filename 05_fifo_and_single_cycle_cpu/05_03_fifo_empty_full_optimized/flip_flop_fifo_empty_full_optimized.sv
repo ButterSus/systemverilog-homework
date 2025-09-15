@@ -23,11 +23,20 @@ module flip_flop_fifo_empty_full_optimized
     logic [pointer_width - 1:0] wr_ptr, rd_ptr;
     logic wr_ptr_odd_circle, rd_ptr_odd_circle;
 
+    // NOTE: The thing I don't like here, is that actually, you're not
+    // interested in odd circles at all, instead, you're interested only in
+    // difference between these two pointers, so you could implement just
+    // ptr_diff_odd_circle. Single bit instead of two.
+
+    // But I kinda get the point of having two variables for each channel,
+    // this is because for async FIFOs, you can't write signals for shared
+    // variable so easily. It's just redundant for sync FIFO.
+
     logic [width - 1:0] data [0: depth - 1];
 
     //------------------------------------------------------------------------
     // Example
-    //------------------------------------------------------------------------
+    //------------------------------------------------------------------------ 
 
     always_ff @ (posedge clk or posedge rst)
         if (rst)
@@ -54,6 +63,25 @@ module flip_flop_fifo_empty_full_optimized
 
     // TODO: Add logic for rd_ptr
 
+    always_ff @ (posedge clk or posedge rst)
+        if (rst)
+        begin
+            rd_ptr <= '0;
+            rd_ptr_odd_circle <= 1'b0;
+        end
+        else if (pop)
+        begin
+            if (rd_ptr == max_ptr)
+            begin
+                rd_ptr <= '0;
+                rd_ptr_odd_circle <= ~ rd_ptr_odd_circle;
+            end
+            else
+            begin
+                rd_ptr <= rd_ptr + 1'b1;
+            end
+        end
+
     //------------------------------------------------------------------------
 
     always_ff @ (posedge clk)
@@ -68,8 +96,9 @@ module flip_flop_fifo_empty_full_optimized
     wire same_circle = (wr_ptr_odd_circle == rd_ptr_odd_circle);
 
     // Example
-    assign empty = equal_ptrs & same_circle;
+    assign empty = equal_ptrs &  same_circle;
 
     // Task: Add logic for full output
+    assign full = equal_ptrs  & ~same_circle;
 
 endmodule
