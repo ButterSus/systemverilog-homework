@@ -74,6 +74,15 @@ module a_plus_b_using_double_buffers
     // assign a_down_ready = ...
     // assign b_down_ready = ...
 
+    wire               sum_up_valid = a_down_valid & b_down_valid;
+    wire               sum_up_ready;
+    wire [width - 1:0] sum_up_data  = a_down_data + b_down_data;
+
+    // I needed to look into others' solutions to get the point of whole task
+    // The idea is that we can think of 'ready' as 'request' signal.
+
+    assign a_down_ready = (sum_up_ready & b_down_valid) | (~a_down_valid & ~b_down_valid);
+    assign b_down_ready = (sum_up_ready & a_down_valid) | (~a_down_valid & ~b_down_valid);
 
     //------------------------------------------------------------------------
 
