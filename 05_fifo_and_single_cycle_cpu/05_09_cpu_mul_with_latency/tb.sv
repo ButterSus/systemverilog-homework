@@ -24,7 +24,7 @@ module tb;
     localparam ROM_SIZE = 1024;
     localparam ADDR_W   = $clog2(ROM_SIZE);
 
-    sr_cpu cpu
+    sr_cpu #(.N(3)) cpu
     (
         .clk     ( clk     ),
         .rst     ( rst     ),
