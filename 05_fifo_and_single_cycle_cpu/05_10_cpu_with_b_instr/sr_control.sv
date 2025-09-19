@@ -18,19 +18,23 @@ module sr_control
     input        [ 2:0] cmdF3,
     input        [ 6:0] cmdF7,
     input               aluZero,
-    output              pcSrc,
+    output              pcSrcB,
+    output              pcSrcJ,
     output logic        regWrite,
     output logic        aluSrc,
     output logic        wdSrc,
     output logic [ 2:0] aluControl
 );
     logic          branch;
+    logic          jump;
     logic          condZero;
-    assign pcSrc = branch & (aluZero == condZero);
+    assign pcSrcB = branch & (aluZero == condZero);
+    assign pcSrcJ = jump;
 
     always_comb
     begin
         branch      = 1'b0;
+        jump        = 1'b0;
         condZero    = 1'b0;
         regWrite    = 1'b0;
         aluSrc      = 1'b0;
@@ -49,6 +53,8 @@ module sr_control
 
             { `RVF7_ANY,  `RVF3_BEQ,  `RVOP_BEQ  } : begin branch = 1'b1; condZero = 1'b1; aluControl = `ALU_SUB; end
             { `RVF7_ANY,  `RVF3_BNE,  `RVOP_BNE  } : begin branch = 1'b1; aluControl = `ALU_SUB; end
+
+            { `RVF7_ANY,  `RVF3_ANY,  `RVOP_JAL  } : begin jump = 1'b1; end
         endcase
     end
 
