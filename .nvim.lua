@@ -5,6 +5,7 @@ lint.linters.verilator.args = {
 	"--Wall",
 	"-Wno-MULTITOP",
 	"--timing",
+	"--relative-includes",
 	"-I./common/",
 	".lint_rules.vlt",
 	"./common/isqrt/isqrt.sv",
