@@ -115,9 +115,9 @@ module sr_cpu
         .result     ( aluResult   )
     );
 
-    assign wd3 =
-                wdSrc ? immU    :
-                        aluResult;
+    assign wd3 = wdSrc ? immU :
+                 pcSrcJ ? pcPlus4 :
+                         aluResult;
 
     // control
 

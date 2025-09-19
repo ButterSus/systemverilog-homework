@@ -54,7 +54,7 @@ module sr_control
             { `RVF7_ANY,  `RVF3_BEQ,  `RVOP_BEQ  } : begin branch = 1'b1; condZero = 1'b1; aluControl = `ALU_SUB; end
             { `RVF7_ANY,  `RVF3_BNE,  `RVOP_BNE  } : begin branch = 1'b1; aluControl = `ALU_SUB; end
 
-            { `RVF7_ANY,  `RVF3_ANY,  `RVOP_JAL  } : begin jump = 1'b1; end
+            { `RVF7_ANY,  `RVF3_ANY,  `RVOP_JAL  } : begin regWrite = 1'b1; jump = 1'b1; end
         endcase
     end
 
