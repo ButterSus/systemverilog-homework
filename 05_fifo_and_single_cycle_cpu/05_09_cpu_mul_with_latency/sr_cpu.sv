@@ -13,6 +13,10 @@
 `include "sr_cpu.svh"
 
 module sr_cpu
+#(
+    // Latency of multiplication
+    parameter N = 2
+)
 (
     input           clk,      // clock
     input           rst,      // reset
@@ -27,6 +31,7 @@ module sr_cpu
 
     wire        aluZero;
     wire        pcSrc;
+    wire        pcStall;
     wire        regWrite;
     wire        aluSrc;
     wire        wdSrc;
@@ -55,6 +60,7 @@ module sr_cpu
     (
         .clk      ( clk       ),
         .rst      ( rst       ),
+        .en       ( !pcStall  ),
         .d        ( pcNext    ),
         .q        ( pc        )
     );
@@ -89,17 +95,16 @@ module sr_cpu
 
     sr_register_file i_rf
     (
-        .clk        ( clk         ),
-        .a0         ( regAddr     ),
-        .a1         ( rs1         ),
-        .a2         ( rs2         ),
-        .a3         ( rd          ),
-        .rd0        ( rd0         ),
-        .rd1        ( rd1         ),
-        .rd2        ( rd2         ),
-        .wd3        ( wd3         ),
-        .we3        ( regWrite
-        )
+        .clk        ( clk                  ),
+        .a0         ( regAddr              ),
+        .a1         ( rs1                  ),
+        .a2         ( rs2                  ),
+        .a3         ( rd                   ),
+        .rd0        ( rd0                  ),
+        .rd1        ( rd1                  ),
+        .rd2        ( rd2                  ),
+        .wd3        ( wd3                  ),
+        .we3        ( regWrite && !pcStall )
     );
 
     // alu
@@ -116,19 +121,20 @@ module sr_cpu
         .result     ( aluResult   )
     );
 
-
-    assign wd3 =
-                wdSrc ? immU : aluResult;
+    assign wd3 = wdSrc ? immU : aluResult;
 
     // control
 
-    sr_control sm_control
+    sr_control #(.N(N)) sm_control
     (
+        .clk        ( clk         ),
+        .rst        ( rst         ),
         .cmdOp      ( cmdOp       ),
         .cmdF3      ( cmdF3       ),
         .cmdF7      ( cmdF7       ),
         .aluZero    ( aluZero     ),
         .pcSrc      ( pcSrc       ),
+        .pcStall    ( pcStall     ),
         .regWrite   ( regWrite    ),
         .aluSrc     ( aluSrc      ),
         .wdSrc      ( wdSrc       ),
