@@ -10,6 +10,8 @@
 //  for systemverilog-homework project.
 //
 
+// Weak strategy: Use valid flag
+
 `include "sr_cpu.svh"
 
 module sr_cpu
@@ -23,6 +25,28 @@ module sr_cpu
     input   [ 4:0]  regAddr,  // debug access reg address
     output  [31:0]  regData   // debug access reg data
 );
+    // Memory validation FSM - creates 1-cycle memory latency
+    enum logic
+    {
+        FETCH,
+        PROC
+    }
+    state, new_state;
+
+    always_comb
+        case (state)
+            FETCH : new_state = PROC;
+            PROC  : new_state = FETCH;
+        endcase
+
+    always_ff @ (posedge clk)
+        if (rst)
+            state <= FETCH;
+        else
+            state <= new_state;
+
+    wire stall = (state != PROC);
+
     // control wires
 
     wire        aluZero;
@@ -56,6 +80,7 @@ module sr_cpu
     (
         .clk      ( clk       ),
         .rst      ( rst       ),
+        .en       ( !stall    ),
         .d        ( pcNext    ),
         .q        ( pc        )
     );
@@ -100,8 +125,7 @@ module sr_cpu
         .rd1        ( rd1                  ),
         .rd2        ( rd2                  ),
         .wd3        ( wd3                  ),
-        .we3        ( regWrite
-        )
+        .we3        ( regWrite && !stall   )
     );
 
     // alu

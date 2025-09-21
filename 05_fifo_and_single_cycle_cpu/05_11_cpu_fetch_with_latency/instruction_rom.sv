@@ -23,6 +23,7 @@ module instruction_rom
     reg [31:0] rom [0:SIZE - 1];
 
     // We intentionally introduce latency here
+    // Which is great, yay!
 
     always_ff @ (posedge clk)
         rd <= rom [a];
