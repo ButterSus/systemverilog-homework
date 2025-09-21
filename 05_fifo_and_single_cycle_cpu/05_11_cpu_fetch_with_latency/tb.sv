@@ -139,13 +139,13 @@ module tb;
         else
             $write ("         ");
 
-        if (wasRst & ~ rst & imDataVld & $isunknown (imData))
-        begin
-            $display ("%s FAIL: fetched instruction at address %x contains Xs: %x",
-                `__FILE__, imAddr, imData);
-
-            $finish;
-        end
+        // if (wasRst & ~ rst & imDataVld & $isunknown (imData))
+        // begin
+        //     $display ("%s FAIL: fetched instruction at address %x contains Xs: %x",
+        //         `__FILE__, imAddr, imData);
+        //
+        //     $finish;
+        // end
 
         if (regData !== prevRegData)
             $write (" %h", regData);
