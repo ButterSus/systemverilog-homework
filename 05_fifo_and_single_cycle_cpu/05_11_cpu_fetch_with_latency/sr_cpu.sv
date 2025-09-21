@@ -15,6 +15,10 @@
 `include "sr_cpu.svh"
 
 module sr_cpu
+#(
+    // Memory latency
+    parameter N = 1
+)
 (
     input           clk,      // clock
     input           rst,      // reset
@@ -25,27 +29,16 @@ module sr_cpu
     input   [ 4:0]  regAddr,  // debug access reg address
     output  [31:0]  regData   // debug access reg data
 );
-    // Memory validation FSM - creates 1-cycle memory latency
-    enum logic
-    {
-        FETCH,
-        PROC
-    }
-    state, new_state;
-
-    always_comb
-        case (state)
-            FETCH : new_state = PROC;
-            PROC  : new_state = FETCH;
-        endcase
+    // Memory validation counter - creates N-cycle memory latency
+    logic [$clog2(N + 1) - 1:0] mem_cnt;
 
     always_ff @ (posedge clk)
         if (rst)
-            state <= FETCH;
+            mem_cnt <= '0;
         else
-            state <= new_state;
+            mem_cnt <= mem_cnt != N ? mem_cnt + 1 : '0;
 
-    wire stall = (state != PROC);
+    wire stall = (mem_cnt != N);
 
     // control wires
 
