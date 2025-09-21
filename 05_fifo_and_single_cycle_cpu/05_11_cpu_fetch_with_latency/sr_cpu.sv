@@ -10,15 +10,11 @@
 //  for systemverilog-homework project.
 //
 
-// Weak strategy: Use valid flag
+// Strong strategy: Pipelined with branch prediction
 
 `include "sr_cpu.svh"
 
 module sr_cpu
-#(
-    // Memory latency
-    parameter N = 1
-)
 (
     input           clk,      // clock
     input           rst,      // reset
@@ -29,17 +25,6 @@ module sr_cpu
     input   [ 4:0]  regAddr,  // debug access reg address
     output  [31:0]  regData   // debug access reg data
 );
-    // Memory validation counter - creates N-cycle memory latency
-    logic [$clog2(N + 1) - 1:0] mem_cnt;
-
-    always_ff @ (posedge clk)
-        if (rst)
-            mem_cnt <= '0;
-        else
-            mem_cnt <= mem_cnt != N ? mem_cnt + 1 : '0;
-
-    wire stall = (mem_cnt != N);
-
     // control wires
 
     wire        aluZero;
@@ -48,6 +33,7 @@ module sr_cpu
     wire        aluSrc;
     wire        wdSrc;
     wire  [2:0] aluControl;
+    wire        stall;
 
     // instruction decode wires
 
@@ -68,7 +54,6 @@ module sr_cpu
     wire [31:0] pcPlus4  = pc + 32'd4;
     wire [31:0] pcNext   = pcSrc ? pcBranch : pcPlus4;
 
-
     register_with_rst_and_en r_pc
     (
         .clk      ( clk       ),
@@ -78,10 +63,25 @@ module sr_cpu
         .q        ( pc        )
     );
 
+    wire [31:0] predicted_pc;
+    wire        use_prediction;
+
+    sr_branch_predictor i_bp
+    (
+        .clk              ( clk            ),
+        .rst              ( rst            ),
+        .pc               ( pc             ),
+        .pcPlus4          ( pcPlus4        ),
+        .predicted_pc     ( predicted_pc   ),
+        .use_prediction   ( use_prediction )
+    );
+
+    assign stall = !use_prediction;
+
 
     // program memory access
 
-    assign imAddr = pc >> 2;
+    assign imAddr = ( use_prediction ? predicted_pc : pc ) >> 2;
     wire [31:0] instr = imData;
 
     // instruction decode
