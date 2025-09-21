@@ -39,8 +39,8 @@ module tb;
     //  .rstPC   ( { nCPUs { PC_Fibonacci } } ),
 
         .rstPC   ( {
-                       { nCPUs - 2 { PC_Factorial } },
-                       {         2 { PC_Fibonacci } }
+                       { (nCPUs - 2) { PC_Factorial } },
+                       {          2  { PC_Fibonacci } }
                  } ),
 
         .regAddr ( { nCPUs { checkReg } } ),
