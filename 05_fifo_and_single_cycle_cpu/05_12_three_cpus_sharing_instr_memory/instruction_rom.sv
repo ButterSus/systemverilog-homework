@@ -12,8 +12,10 @@
 
 module instruction_rom
 #(
-    parameter SIZE   = 64,
-    parameter ADDR_W = $clog2(SIZE)
+    parameter SIZE    = 64,
+    parameter ADDR_W  = $clog2(SIZE),
+    parameter BANK_ID = 0,
+    parameter nBANKs  = 1
 )
 (
     input  [ADDR_W - 1:0] a,
@@ -22,6 +24,13 @@ module instruction_rom
     reg [31:0] rom [0:SIZE - 1];
     assign rd = rom [a];
 
-    initial $readmemh ("program.hex", rom);
+    initial begin
+        reg [31:0] temp_rom [0:SIZE * nBANKs - 1];
+        $readmemh ("program.hex", temp_rom);
+
+        for (int i = 0; i < SIZE; i++) begin
+            rom[i] = temp_rom[i * nBANKs + BANK_ID];
+        end
+    end
 
 endmodule
